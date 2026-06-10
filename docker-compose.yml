@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+
+  # ─────────────────────────────────────────
+  # ZOOKEEPER — Kafka needs this to run
+  # ─────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: swiftorder-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181   # Port Kafka uses to talk to Zookeeper
+      ZOOKEEPER_TICK_TIME: 2000     # Heartbeat interval in ms
+    ports:
+      - "2181:2181"
+
+  # ─────────────────────────────────────────
+  # KAFKA — The message broker
+  # ─────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: swiftorder-kafka
+    depends_on:
+      - zookeeper                   # Kafka starts AFTER zookeeper is ready
+    ports:
+      - "9092:9092"                 # Port your Spring Boot apps will connect to
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181          # Tells Kafka where Zookeeper is
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092  # Internal Docker network address
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1        # 1 = fine for local dev (no cluster)
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'          # Topics auto-created when first used
+
+  # ─────────────────────────────────────────
+  # ORDER-DB — MySQL for order-service
+  # ─────────────────────────────────────────
+  order-db:
+    image: mysql:8.0
+    container_name: swiftorder-order-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root         # Root password
+      MYSQL_DATABASE: orderdb           # DB auto-created on first start
+      MYSQL_USER: orderuser             # App will use this user
+      MYSQL_PASSWORD: orderpass         # App will use this password
+    ports:
+      - "3307:3306"                     # Host port 3307 → container port 3306
+                                        # (3307 so it doesn't clash with local MySQL)
+    volumes:
+      - order-db-data:/var/lib/mysql    # Persist data even if container restarts
+
+  # ─────────────────────────────────────────
+  # NOTIFICATION-DB — MySQL for notification-service
+  # ─────────────────────────────────────────
+  notification-db:
+    image: mysql:8.0
+    container_name: swiftorder-notification-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: notificationdb
+      MYSQL_USER: notifuser
+      MYSQL_PASSWORD: notifpass
+    ports:
+      - "3308:3306"                     # Host port 3308 → avoids clash with order-db
+    volumes:
+      - notification-db-data:/var/lib/mysql
+
+# ─────────────────────────────────────────
+# NAMED VOLUMES — Docker manages these on disk
+# ─────────────────────────────────────────
+volumes:
+  order-db-data:
+  notification-db-data:

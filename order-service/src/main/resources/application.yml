@@ -1,0 +1,32 @@
+server:
+  port: 8081                          # order-service runs on port 8081
+
+spring:
+  application:
+    name: order-service
+
+  # ─────────────────────────────────────
+  # MySQL Configuration
+  # ─────────────────────────────────────
+  datasource:
+    url: jdbc:mysql://order-db:3306/orderdb   # 'order-db' = docker container name
+    username: orderuser
+    password: orderpass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update                # Auto creates/updates tables on startup
+    show-sql: true                    # Prints SQL in logs (helpful for debugging)
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  # ─────────────────────────────────────
+  # Kafka Configuration
+  # ─────────────────────────────────────
+  kafka:
+    bootstrap-servers: kafka:9092     # 'kafka' = docker container name
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

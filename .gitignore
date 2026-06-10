@@ -1,0 +1,22 @@
+# Maven
+**/target/
+**/mvnw
+**/mvnw.cmd
+**/.mvn/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.class
+
+# Env / secrets
+**/application-local.yml
+**/*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+**/mysql-data/
