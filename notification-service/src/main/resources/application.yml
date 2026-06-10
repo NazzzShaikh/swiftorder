@@ -1,0 +1,36 @@
+server:
+  port: 8082                        # notification-service runs on 8082
+
+spring:
+  application:
+    name: notification-service
+
+  # ─────────────────────────────────────
+  # MySQL Configuration
+  # ─────────────────────────────────────
+  datasource:
+    url: jdbc:mysql://notification-db:3306/notificationdb  # its own DB container
+    username: notifuser
+    password: notifpass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  # ─────────────────────────────────────
+  # Kafka Configuration
+  # ─────────────────────────────────────
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: notification-group        # Consumer group ID (explained below)
+      auto-offset-reset: earliest         # Read from beginning if no offset found
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.swiftorder.orderservice.dto,com.swiftorder.notificationservice.dto"
