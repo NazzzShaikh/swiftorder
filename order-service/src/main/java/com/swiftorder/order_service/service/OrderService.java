@@ -1,10 +1,10 @@
-package com.swiftorder.orderservice.service;
+package com.swiftorder.order_service.service;
 
-import com.swiftorder.orderservice.dto.OrderEvent;
-import com.swiftorder.orderservice.dto.OrderRequest;
-import com.swiftorder.orderservice.entity.Order;
-import com.swiftorder.orderservice.kafka.OrderProducer;
-import com.swiftorder.orderservice.repository.OrderRepository;
+import com.swiftorder.order_service.dto.OrderEvent;
+import com.swiftorder.order_service.dto.OrderRequest;
+import com.swiftorder.order_service.entity.Order;
+import com.swiftorder.order_service.kafka.OrderProducer;
+import com.swiftorder.order_service.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,8 +18,6 @@ public class OrderService {
     private final OrderProducer orderProducer;
 
     public Order placeOrder(OrderRequest request) {
-
-        // 1. Build the Order entity from the request
         Order order = Order.builder()
                 .customerName(request.getCustomerName())
                 .product(request.getProduct())
@@ -27,11 +25,9 @@ public class OrderService {
                 .price(request.getPrice())
                 .build();
 
-        // 2. Save to MySQL — @PrePersist sets status + createdAt automatically
         Order savedOrder = orderRepository.save(order);
         log.info("Order saved to DB with id: {}", savedOrder.getId());
 
-        // 3. Build the Kafka event from saved order
         OrderEvent event = OrderEvent.builder()
                 .orderId(savedOrder.getId())
                 .customerName(savedOrder.getCustomerName())
@@ -41,9 +37,7 @@ public class OrderService {
                 .status(savedOrder.getStatus())
                 .build();
 
-        // 4. Publish event to Kafka
         orderProducer.sendOrderEvent(event);
-
         return savedOrder;
     }
 }

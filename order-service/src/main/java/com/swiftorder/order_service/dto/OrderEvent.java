@@ -1,11 +1,10 @@
-package com.swiftorder.orderservice.dto;
+package com.swiftorder.order_service.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-// This is the event payload published to Kafka topic "order-created"
 @Data
 @Builder
 @NoArgsConstructor

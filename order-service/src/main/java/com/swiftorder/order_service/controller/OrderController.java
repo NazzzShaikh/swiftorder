@@ -1,8 +1,8 @@
-package com.swiftorder.orderservice.controller;
+package com.swiftorder.order_service.controller;
 
-import com.swiftorder.orderservice.dto.OrderRequest;
-import com.swiftorder.orderservice.entity.Order;
-import com.swiftorder.orderservice.service.OrderService;
+import com.swiftorder.order_service.dto.OrderRequest;
+import com.swiftorder.order_service.entity.Order;
+import com.swiftorder.order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -17,7 +17,6 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    // POST /api/orders
     @PostMapping
     public ResponseEntity<Order> placeOrder(@RequestBody OrderRequest request) {
         log.info("Received order request for customer: {}", request.getCustomerName());
@@ -25,7 +24,6 @@ public class OrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(order);
     }
 
-    // GET /api/orders/health  — simple check to verify service is up
     @GetMapping("/health")
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("order-service is UP ✅");

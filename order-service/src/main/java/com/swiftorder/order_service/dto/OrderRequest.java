@@ -1,8 +1,7 @@
-package com.swiftorder.orderservice.dto;
+package com.swiftorder.order_service.dto;
 
 import lombok.Data;
 
-// This is what the user sends in the POST /api/orders body
 @Data
 public class OrderRequest {
     private String customerName;
