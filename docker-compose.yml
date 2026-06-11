@@ -3,53 +3,63 @@ version: '3.8'
 services:
 
   # ─────────────────────────────────────────
-  # ZOOKEEPER — Kafka needs this to run
+  # ZOOKEEPER
   # ─────────────────────────────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: swiftorder-zookeeper
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181   # Port Kafka uses to talk to Zookeeper
-      ZOOKEEPER_TICK_TIME: 2000     # Heartbeat interval in ms
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    networks:
+      - swiftorder-network
 
   # ─────────────────────────────────────────
-  # KAFKA — The message broker
+  # KAFKA
   # ─────────────────────────────────────────
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: swiftorder-kafka
     depends_on:
-      - zookeeper                   # Kafka starts AFTER zookeeper is ready
+      - zookeeper
     ports:
-      - "9092:9092"                 # Port your Spring Boot apps will connect to
+      - "9092:9092"
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181          # Tells Kafka where Zookeeper is
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092  # Internal Docker network address
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1        # 1 = fine for local dev (no cluster)
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'          # Topics auto-created when first used
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - swiftorder-network
 
   # ─────────────────────────────────────────
-  # ORDER-DB — MySQL for order-service
+  # ORDER-DB
   # ─────────────────────────────────────────
   order-db:
     image: mysql:8.0
     container_name: swiftorder-order-db
     environment:
-      MYSQL_ROOT_PASSWORD: root         # Root password
-      MYSQL_DATABASE: orderdb           # DB auto-created on first start
-      MYSQL_USER: orderuser             # App will use this user
-      MYSQL_PASSWORD: orderpass         # App will use this password
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orderdb
+      MYSQL_USER: orderuser
+      MYSQL_PASSWORD: orderpass
     ports:
-      - "3307:3306"                     # Host port 3307 → container port 3306
-                                        # (3307 so it doesn't clash with local MySQL)
+      - "3307:3306"
     volumes:
-      - order-db-data:/var/lib/mysql    # Persist data even if container restarts
+      - order-db-data:/var/lib/mysql
+    networks:
+      - swiftorder-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ─────────────────────────────────────────
-  # NOTIFICATION-DB — MySQL for notification-service
+  # NOTIFICATION-DB
   # ─────────────────────────────────────────
   notification-db:
     image: mysql:8.0
@@ -60,12 +70,75 @@ services:
       MYSQL_USER: notifuser
       MYSQL_PASSWORD: notifpass
     ports:
-      - "3308:3306"                     # Host port 3308 → avoids clash with order-db
+      - "3308:3306"
     volumes:
       - notification-db-data:/var/lib/mysql
+    networks:
+      - swiftorder-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # ORDER-SERVICE
+  # ─────────────────────────────────────────
+  order-service:
+    build:
+      context: ./order-service      # Dockerfile is here
+      dockerfile: Dockerfile
+    container_name: swiftorder-order-service
+    ports:
+      - "8081:8081"
+    environment:
+      # Override application.yml values at runtime
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-db:3306/orderdb
+      SPRING_DATASOURCE_USERNAME: orderuser
+      SPRING_DATASOURCE_PASSWORD: orderpass
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      order-db:
+        condition: service_healthy    # Wait for MySQL to be ready
+      kafka:
+        condition: service_started    # Wait for Kafka to start
+    networks:
+      - swiftorder-network
+    restart: on-failure               # Restart if crashes (DB not ready yet)
+
+  # ─────────────────────────────────────────
+  # NOTIFICATION-SERVICE
+  # ─────────────────────────────────────────
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: swiftorder-notification-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://notification-db:3306/notificationdb
+      SPRING_DATASOURCE_USERNAME: notifuser
+      SPRING_DATASOURCE_PASSWORD: notifpass
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      notification-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - swiftorder-network
+    restart: on-failure
 
 # ─────────────────────────────────────────
-# NAMED VOLUMES — Docker manages these on disk
+# NETWORK — All containers talk to each other
+# ─────────────────────────────────────────
+networks:
+  swiftorder-network:
+    driver: bridge
+
+# ─────────────────────────────────────────
+# VOLUMES
 # ─────────────────────────────────────────
 volumes:
   order-db-data:
